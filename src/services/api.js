@@ -18,14 +18,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Handle 401 globally
+// Handle 401 globally — but never force-redirect for the login/register
+// requests themselves, otherwise a wrong-password 401 wipes the page
+// (and the toast) via a full reload before the user can read it.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url || '';
+    const isAuthEndpoint = url.includes('/api/auth/login') || url.includes('/api/auth/register');
+
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminData');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
